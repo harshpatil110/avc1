@@ -1,0 +1,13 @@
+[project]
+name = "ai-meeting-assistant"
+version = "0.1.0"
+description = "AI Meeting Assistant using Vision Agents and Google Gemini"
+requires-python = ">=3.13"
+dependencies = [
+    "vision-agents>=0.2.0",
+    "python-dotenv>=1.0.0",
+    "stream-py>=0.5.0",
+]
+
+[tool.uv]
+dev-dependencies = []
