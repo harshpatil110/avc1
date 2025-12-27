@@ -16,6 +16,7 @@ export async function POST(request) {
     const secret = process.env.STREAM_API_SECRET;
 
     if (!apiKey || !secret) {
+      console.error('Missing Stream credentials:', { apiKey: !!apiKey, secret: !!secret });
       return NextResponse.json(
         { error: 'Stream credentials not configured' },
         { status: 500 }
@@ -24,20 +25,24 @@ export async function POST(request) {
 
     const client = new StreamClient(apiKey, secret);
 
-    // Create/upsert user with admin role
-    await client.upsertUsers([
-      {
-        id: userId,
-        role: 'admin',
-        name: userId,
-      },
-    ]);
-
-    // Generate token with iat set to 60 seconds in the past to prevent clock sync issues
+    // Generate token without user creation first - simpler approach
     const issuedAt = Math.floor(Date.now() / 1000) - 60;
     const exp = issuedAt + 24 * 60 * 60; // 24 hours validity
 
     const token = client.createToken(userId, exp, issuedAt);
+
+    // Try to create user but don't fail if it errors
+    try {
+      await client.upsertUsers([
+        {
+          id: userId,
+          role: 'admin',
+          name: userId,
+        },
+      ]);
+    } catch (userError) {
+      console.warn('User creation warning (non-fatal):', userError.message);
+    }
 
     return NextResponse.json({
       token,

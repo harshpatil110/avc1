@@ -3,7 +3,6 @@
 import { use } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useRouter } from 'next/navigation';
-import StreamProvider from '@/components/StreamProvider';
 import MeetingRoom from '@/components/MeetingRoom';
 
 export default function MeetingPage({ params }) {
@@ -18,8 +17,6 @@ export default function MeetingPage({ params }) {
   };
 
   return (
-    <StreamProvider userId={username}>
-      <MeetingRoom callId={callId} onLeave={handleLeave} />
-    </StreamProvider>
+    <MeetingRoom callId={callId} onLeave={handleLeave} />
   );
 }
