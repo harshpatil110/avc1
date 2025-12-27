@@ -25,15 +25,13 @@ export async function POST(request) {
     const client = new StreamClient(apiKey, secret);
 
     // Create/upsert user with admin role
-    await client.upsertUsers({
-      users: {
-        [userId]: {
-          id: userId,
-          role: 'admin',
-          name: userId,
-        },
+    await client.upsertUsers([
+      {
+        id: userId,
+        role: 'admin',
+        name: userId,
       },
-    });
+    ]);
 
     // Generate token with iat set to 60 seconds in the past to prevent clock sync issues
     const issuedAt = Math.floor(Date.now() / 1000) - 60;

@@ -86,8 +86,13 @@ export default function TranscriptPanel({ call }) {
                 d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
               />
             </svg>
-            <p className="text-sm">Waiting for speech...</p>
-            <p className="text-xs mt-2">Start speaking to see transcriptions</p>
+            <p className="text-sm font-medium">Live Transcription</p>
+            <p className="text-xs mt-2 text-gray-600">
+              Transcription requires Stream Enterprise plan
+            </p>
+            <p className="text-xs mt-1 text-gray-600">
+              Enable in your Stream dashboard or test without captions
+            </p>
           </div>
         ) : (
           transcripts.map((transcript, index) => (
