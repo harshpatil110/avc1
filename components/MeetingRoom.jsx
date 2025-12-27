@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { useStreamVideoClient, useCall } from '@stream-io/video-react-sdk';
+import { useStreamVideoClient } from '@stream-io/video-react-sdk';
 import TranscriptPanel from '@/components/TranscriptPanel';
 
 export default function MeetingRoom({ callId, onLeave }) {
@@ -21,22 +21,15 @@ export default function MeetingRoom({ callId, onLeave }) {
       try {
         setIsLoading(true);
         
-        // Create or get the call
         const newCall = client.call('default', callId);
         
-        // Join the call with camera and mic enabled
         await newCall.join({
           create: true,
           data: {
             members: [],
-            settings_override: {
-              audio: { mic_default_on: true },
-              video: { camera_default_on: true },
-            },
           },
         });
 
-        // Enable camera and microphone
         await newCall.camera.enable();
         await newCall.microphone.enable();
 
@@ -44,9 +37,8 @@ export default function MeetingRoom({ callId, onLeave }) {
         callInitialized.current = true;
         setIsLoading(false);
         
-        console.log('✅ Successfully joined the call with camera and mic');
+        console.log('✅ Successfully joined the call');
         
-        // Attach video stream to video element
         if (videoRef.current && newCall.camera.state.mediaStream) {
           videoRef.current.srcObject = newCall.camera.state.mediaStream;
         }
@@ -55,7 +47,18 @@ export default function MeetingRoom({ callId, onLeave }) {
         setError(err.message);
         setIsLoading(false);
       }
-    };toggleMicrophone = async () => {
+    };
+
+    setupCall();
+
+    return () => {
+      if (call) {
+        call.leave().catch(console.error);
+      }
+    };
+  }, [client, callId]);
+
+  const toggleMicrophone = async () => {
     if (call) {
       if (isMicOn) {
         await call.microphone.disable();
@@ -81,19 +84,7 @@ export default function MeetingRoom({ callId, onLeave }) {
     if (call) {
       try {
         await call.camera.disable();
-        await call.microphone.disable();ll();
-
-    // Cleanup
-    return () => {
-      if (call) {
-        call.leave().catch(console.error);
-      }
-    };
-  }, [client, callId]);
-
-  const handleLeaveCall = async () => {
-    if (call) {
-      try {
+        await call.microphone.disable();
         await call.leave();
       } catch (err) {
         console.error('Error leaving call:', err);
@@ -112,10 +103,33 @@ export default function MeetingRoom({ callId, onLeave }) {
           <p className="text-white text-xl">Joining meeting...</p>
         </div>
       </div>
-    ); min-h-[500px]">
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="h-screen bg-gray-900 flex items-center justify-center">
+        <div className="bg-red-900 text-white p-6 rounded-lg">
+          <h2 className="text-xl font-bold mb-2">Error</h2>
+          <p>{error}</p>
+          <button
+            onClick={onLeave}
+            className="mt-4 bg-white text-red-900 px-4 py-2 rounded-lg hover:bg-gray-100"
+          >
+            Go Back
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-screen bg-gray-900 grid grid-cols-1 lg:grid-cols-3 gap-4 p-4">
+      {/* Video Section */}
+      <div className="lg:col-span-2 bg-gray-800 rounded-lg overflow-hidden flex flex-col">
+        <div className="flex-1 relative bg-gray-900 min-h-[500px]">
           {call && (
             <div className="absolute inset-0 w-full h-full">
-              {/* Local Video */}
               <div className="relative w-full h-full flex items-center justify-center">
                 {isCameraOn ? (
                   <video
@@ -137,7 +151,6 @@ export default function MeetingRoom({ callId, onLeave }) {
                   </div>
                 )}
                 
-                {/* Status indicators */}
                 <div className="absolute top-4 left-4 flex space-x-2">
                   {!isMicOn && (
                     <div className="bg-red-600 text-white px-3 py-1 rounded-full text-sm flex items-center space-x-1">
@@ -147,22 +160,13 @@ export default function MeetingRoom({ callId, onLeave }) {
                       <span>Muted</span>
                     </div>
                   )}
-  }
-
-  return (
-    <div className="h-screen bg-gray-900 grid grid-cols-1 lg:grid-cols-3 gap-4 p-4">
-      {/* Video Section */}
-      <div className="lg:col-span-2 bg-gray-800 rounded-lg overflow-hidden flex flex-col">
-        <div className="flex-1 relative bg-gray-900">
-          {call && (
-            <div className="h-full w-full">
-              {/* Participant Video Grid */}
-              <div className="absolute inset-0 flex items-center justify-center p-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full h-full">
-                  {/* Local Video */}
-                  <div className="relative bg-gray-800 rounded-lg overflow-hidden flex items-center justify-center">
-                    <div className="te6 flex justify-center items-center space-x-4">
-          {/* Microphone Toggle */}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+        
+        <div className="bg-gray-900 p-6 flex justify-center items-center space-x-4">
           <button
             onClick={toggleMicrophone}
             className={`${
@@ -181,7 +185,6 @@ export default function MeetingRoom({ callId, onLeave }) {
             )}
           </button>
 
-          {/* Camera Toggle */}
           <button
             onClick={toggleCamera}
             className={`${
@@ -200,7 +203,6 @@ export default function MeetingRoom({ callId, onLeave }) {
             )}
           </button>
 
-          {/* Leave Call */}
           <button
             onClick={handleLeaveCall}
             className="bg-red-600 hover:bg-red-700 text-white px-8 py-4 rounded-full font-semibold transition duration-200 flex items-center space-x-2 shadow-lg"
@@ -208,24 +210,7 @@ export default function MeetingRoom({ callId, onLeave }) {
             <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
               <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
             </svg>
-            <span>Leave Call
-            className="bg-gray-700 hover:bg-gray-600 text-white p-4 rounded-full transition duration-200"
-            title="Toggle Camera"
-          >
-            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z" />
-            </svg>
-          </button>
-
-          {/* Leave Call */}
-          <button
-            onClick={handleLeaveCall}
-            className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-full font-semibold transition duration-200 flex items-center space-x-2"
-          >
-            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
-            </svg>
-            <span>Leave</span>
+            <span>Leave Call</span>
           </button>
         </div>
       </div>
