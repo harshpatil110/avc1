@@ -1,68 +1,40 @@
+"""
+AI Meeting Assistant - Demonstration Mode
+This version demonstrates the AI assistant logic with console input.
+For production, integrate with Stream's WebSocket API for real-time transcription.
+"""
+
 import os
 import asyncio
 from dotenv import load_dotenv
 from google import genai
-from stream_chat import StreamChat
 
-# Load environment variables
 load_dotenv()
 
 class MeetingAssistant:
     def __init__(self):
-        self.api_key = os.getenv('STREAM_API_KEY')
-        self.api_secret = os.getenv('STREAM_API_SECRET')
         self.gemini_api_key = os.getenv('GEMINI_API_KEY')
         self.call_id = os.getenv('CALL_ID', 'demo-meeting')
-        
-        # Meeting context storage
         self.meeting_context = []
-        self.max_context_length = 50
-        
-        # Initialize components
         self.model = None
-        self.stream_client = None
         
-    async def initialize_agent(self):
+    async def initialize(self):
         """Initialize Gemini AI"""
         try:
-            client = genai.Client(api_key=self.gemini_api_key)
-            self.model = client
-            
-            print("✅ Gemini AI initialized successfully")
+            self.model = genai.Client(api_key=self.gemini_api_key)
+            print("✅ Gemini AI initialized successfully\n")
         except Exception as e:
             print(f"❌ Failed to initialize Gemini: {e}")
             raise
     
-    async def join_call(self):
-        """Setup the bot and start monitoring"""
-        try:
-            self.stream_client = StreamClient(self.api_key, self.api_secret)
-            
-            bot_user_id = "ai-assistant-bot"
-            self.stream_client.upsert_users({
-                bot_user_id: {
-                    "id": bot_user_id,
-                    "name": "AI Assistant",
-                    "role": "admin"
-                }
-            })hat(api_key=self.api_key, api_secret=self.api_secret)
-            
-            bot_user_id = "ai-assistant-bot"
-            self.stream_client.upsert_user({
-                "id": bot_user_id,
-                "name": "AI Assistant",
-                "role": "admin"ception as e:
-            print(f"❌ Failed to setup bot: {e}")
-            raise
-    
-    async def simulate_meeting_loop(self):
-        """Interactive console mode for demonstration"""
-        print("\n⚠️  Note: This is a demonstration mode.")
-        print("For full functionality, integrate Stream's WebSocket events.")
-        print("\nType messages to simulate meeting transcription:")
-        print("- Start with username: (e.g., 'John: Hello everyone')")
-        print("- Say 'Hey Assistant' to trigger AI response")
-        print("- Type 'exit' to quit\n")
+    async def start(self):
+        """Start the assistant"""
+        print(f"🎥 Monitoring call: {self.call_id}")
+        print("💬 Listening for 'Hey Assistant' activation phrase...\n")
+        print("⚠️  DEMO MODE: Type messages to simulate meeting transcription")
+        print("   Format: 'Name: Message' (e.g., 'John: Hello everyone')")
+        print("   Say 'Hey Assistant' in any message to trigger AI")
+        print("   Type 'exit' to quit\n")
         
         while True:
             try:
@@ -71,9 +43,10 @@ class MeetingAssistant:
                 )
                 
                 if user_input.lower() == 'exit':
-                    print("👋 Shutting down...")
+                    print("\n👋 Shutting down...")
                     break
                 
+                # Parse input
                 if ':' in user_input:
                     speaker, text = user_input.split(':', 1)
                     speaker = speaker.strip()
@@ -82,108 +55,76 @@ class MeetingAssistant:
                     speaker = "Unknown"
                     text = user_input
                 
-                event = {
-                    'closed_caption': {
-                        'text': text,
-                        'user': {'name': speaker, 'id': speaker.lower()}
-                    },
-                    'created_at': 'now'
-                }
+                # Store context
+                self.meeting_context.append({
+                    'speaker': speaker,
+                    'text': text
+                })
                 
-                await self.handle_transcription(event)
+                # Keep only last 50 messages
+                if len(self.meeting_context) > 50:
+                    self.meeting_context = self.meeting_context[-50:]
                 
+                print(f"📝 {speaker}: {text}")
+                
+                # Check for activation
+                if "hey assistant" in text.lower():
+                    await self.respond(text, speaker)
+                    
             except EOFError:
                 break
             except Exception as e:
                 print(f"❌ Error: {e}")
     
-    async def handle_transcription(self, event):
-        """Process incoming transcription"""
-        try:
-            closed_caption = event.get('closed_caption', {})
-            text = closed_caption.get('text', '')
-            user = closed_caption.get('user', {})
-            speaker_name = user.get('name', user.get('id', 'Unknown'))
-            
-            if not text:
-                return
-            
-            self.meeting_context.append({
-                'speaker': speaker_name,
-                'text': text,
-                'timestamp': event.get('created_at')
-            })
-            
-            if len(self.meeting_context) > self.max_context_length:
-                self.meeting_context = self.meeting_context[-self.max_context_length:]
-            
-            print(f"📝 {speaker_name}: {text}")
-            
-            if "hey assistant" in text.lower():
-                await self.respond_to_query(text, speaker_name)
-                
-        except Exception as e:
-            print(f"❌ Error handling transcription: {e}")
-    
-    async def respond_to_query(self, query, speaker_name):
+    async def respond(self, query, speaker):
         """Generate AI response"""
         try:
-            print(f"\n🤖 AI Assistant activated by {speaker_name}")
+            print(f"\n🤖 AI Assistant activated by {speaker}")
             
+            # Build context
             context = "\n".join([
                 f"{msg['speaker']}: {msg['text']}" 
                 for msg in self.meeting_context[-10:]
             ])
             
-            system_context = """You are a helpful meeting assistant. 
-Keep answers concise and relevant to the meeting context. 
-Respond naturally as if you're a participant in the meeting."""
-            
-            full_prompt = f"""{system_context}
+            prompt = f"""You are a helpful meeting assistant. Keep answers concise.
 
 Meeting Context:
 {context}
 
-Current Query: {query}
+Query: {query}
 
-Provide a helpful response:"""
+Response:"""
             
+            # Get response
             response = await asyncio.get_event_loop().run_in_executor(
-                None, 
-                lambda: self.model.generate_content(full_prompt).text
-            )
-            models.generate_content(
+                None,
+                lambda: self.model.models.generate_content(
                     model='gemini-2.0-flash-exp',
-                    contents=full_prompt,
-                    config=genai.types.GenerateContentConfig(
-                        temperature=0.7,
-                        max_output_tokens=200
-                    )
-                
+                    contents=prompt
+                ).text
+            )
+            
             print(f"💬 AI Response: {response}\n")
             
         except Exception as e:
-            print(f"❌ Error generating response: {e}")
+            print(f"❌ Error generating response: {e}\n")
 
 async def main():
-    """Main entry point"""
     print("🚀 Starting AI Meeting Assistant...\n")
     
-    required_vars = ['STREAM_API_KEY', 'STREAM_API_SECRET', 'GEMINI_API_KEY']
-    missing_vars = [var for var in required_vars if not os.getenv(var)]
-    
-    if missing_vars:
-        print(f"❌ Missing environment variables: {', '.join(missing_vars)}")
-        print("Please set them in the .env file")
+    if not os.getenv('GEMINI_API_KEY'):
+        print("❌ GEMINI_API_KEY not found in .env file")
+        print("Please add your Gemini API key to backend/.env")
         return
     
     assistant = MeetingAssistant()
     
     try:
-        await assistant.initialize_agent()
-        await assistant.join_call()
+        await assistant.initialize()
+        await assistant.start()
     except KeyboardInterrupt:
-        print("\n👋 Shutting down AI Assistant...")
+        print("\n\n👋 Shutting down...")
     except Exception as e:
         print(f"❌ Fatal error: {e}")
 
